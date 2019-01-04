@@ -19,6 +19,7 @@ import { removeCategory, renameCategory, setCategory, setCategoryOrder } from '.
 import { ICategory, ICategoryDictionary } from '../types/ICategoryDictionary';
 import { ICategoriesTree } from '../types/ITrees';
 import createTreeDataObject from '../util/createTreeDataObject';
+import { UNASSIGNED } from '../index';
 
 import * as Promise from 'bluebird';
 import * as React from 'react';
@@ -427,6 +428,9 @@ class CategoryList extends ComponentEx<IProps, IComponentState> {
 
   private generateNodeProps = (rowInfo: SortableTreeT.ExtendedNodeData) => {
     const {t} = this.props;
+    if (rowInfo.node.title === UNASSIGNED) {
+      return {};
+    }
     const actions: IActionDefinition[] = [
       {
         icon: 'edit',
@@ -477,6 +481,11 @@ class CategoryList extends ComponentEx<IProps, IComponentState> {
     (args: { treeData: SortableTreeT.TreeItem[], node: SortableTreeT.TreeItem,
              treeIndex: number, path: string[] | number[] }): void => {
     const { gameMode, onSetCategory, onSetCategoryOrder } = this.props;
+
+    if (args.node.title === UNASSIGNED || args.path[args.path.length -2] === UNASSIGNED) {
+      return undefined;
+    }
+
     if (args.path[args.path.length - 2] !== args.node.parentId) {
       onSetCategory(gameMode, args.node.categoryId, {
         name: args.node.title,
