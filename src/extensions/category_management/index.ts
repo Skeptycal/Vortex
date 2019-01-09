@@ -14,7 +14,7 @@ import { showCategoriesDialog } from './actions/session';
 import {categoryReducer} from './reducers/category';
 import { sessionReducer } from './reducers/session';
 import { allCategories } from './selectors';
-import { ICategoryDictionary } from './types/ICategoryDictionary';
+import { ICategoryDictionary, ICategory } from './types/ICategoryDictionary';
 import { ICategoriesTree } from './types/ITrees';
 import CategoryFilter from './util/CategoryFilter';
 import { setCategory } from './actions/category';
@@ -29,18 +29,26 @@ export const UNASSIGNED = 'Unassigned';
 export { resolveCategoryName, resolveCategoryPath };
 
 function getModCategory(mod: IModWithState) {
-  return getSafe(mod, ['attributes', 'category'], UNASSIGNED);
+  return getSafe(mod, ['attributes', 'category'], undefined);
 }
 
-function createUnassignedCategory(store: Redux.Store<any>, gameMode: string) {
+function getUnassignedCategory(store: Redux.Store<any>, gameMode: string): ICategory {
   const state: IState = store.getState();
-  const catDictionary: ICategoryDictionary = getSafe(state, ['persistent', 'categories', gameMode], undefined);
-  const catsMap = Object.keys(catDictionary).map(key => catDictionary[key]);
-  const existing = catsMap.find(category => category.name === UNASSIGNED);
-  if (existing === undefined) {
+  const catDictionary: ICategoryDictionary = getSafe(state, ['persistent', 'categories', gameMode], {});
+  let unassignedCat: ICategory = Object.keys(catDictionary).map(key => catDictionary[key]).find(category => category.name === UNASSIGNED);
+  if (unassignedCat === undefined) {
+    const catsMap = Object.keys(catDictionary).map(key => catDictionary[key]);
     const minOrder: number = catsMap.reduce((min, cat) => cat.order < min ? cat.order : min, catsMap[0].order);
-    store.dispatch(setCategory(gameMode, UNASSIGNED, { name: UNASSIGNED, order: minOrder -1, parentCategory: undefined }))
+    unassignedCat = createUnassignedCategory(store, gameMode, minOrder - 1);
   }
+  return unassignedCat;
+}
+
+function createUnassignedCategory(store: Redux.Store<any>, gameMode: string, loadOrder: number): ICategory {
+  const unassignedCat = { name: UNASSIGNED, order: loadOrder, parentCategory: undefined };
+  store.dispatch(setCategory(gameMode, UNASSIGNED, unassignedCat))
+
+  return unassignedCat;
 }
 
 function getCategoryChoices(state: IState) {
@@ -67,8 +75,22 @@ function init(context: IExtensionContext): boolean {
     description: 'Mod Category',
     icon: 'sitemap',
     placement: 'table',
-    calc: (mod: IModWithState) =>
-      resolveCategoryName(getModCategory(mod), context.api.store.getState()),
+    calc: (mod: IModWithState) => {
+      let category = getModCategory(mod);
+      if (category === undefined) {
+        const gameMode = activeGameId(context.api.store.getState());
+        const unassigned: ICategory = getUnassignedCategory(context.api.store, gameMode);
+        (mod.state === 'downloaded') 
+          ? context.api.store.dispatch(
+              setDownloadModInfo(mod.id, 'nexus.modInfo.category_id', unassigned.name))
+          : context.api.store.dispatch(
+              setModAttribute(gameMode, mod.id, 'category', unassigned.name));
+
+        category = unassigned.name;
+      }
+
+      return resolveCategoryName(category, context.api.store.getState());
+    },
     isToggleable: true,
     edit: {},
     isSortable: true,
@@ -125,9 +147,6 @@ function init(context: IExtensionContext): boolean {
         } else if (categories !== undefined && categories.length === 0) {
           context.api.store.dispatch(updateCategories(gameMode, {}));
         }
-
-        // Ensure we have an unassigned category for this gameMode.
-        createUnassignedCategory(store, gameMode);
       });
     } catch (err) {
       log('error', 'Failed to load categories', err);

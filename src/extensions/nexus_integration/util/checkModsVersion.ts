@@ -74,7 +74,9 @@ function updateModAttributes(dispatch: Redux.Dispatch<any>,
   if (modInfo.endorsement !== undefined) {
     update(dispatch, gameId, mod, 'endorsed', modInfo.endorsement.endorse_status);
   }
-  if (getSafe(mod.attributes, ['category'], undefined) === undefined) {
+
+  const category = getSafe(mod.attributes, ['category'], undefined);
+  if ((category === undefined) || (category === 'Unassigned')) {
     update(dispatch, gameId, mod, 'category', modInfo.category_id);
   }
   update(dispatch, gameId, mod, 'shortDescription', modInfo.summary);

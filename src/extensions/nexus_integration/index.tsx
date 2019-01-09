@@ -12,7 +12,7 @@ import { activeGameId, gameById, downloadPathForGame, knownGames } from '../../u
 import { currentGame, getSafe } from '../../util/storeHelper';
 import { decodeHTML, truthy } from '../../util/util';
 
-import { ICategoryDictionary } from '../category_management/types/ICategoryDictionary';
+import { ICategoryDictionary, ICategory } from '../category_management/types/ICategoryDictionary';
 import { DownloadIsHTML } from '../download_management/DownloadManager';
 import { IGameStored } from '../gamemode_management/types/IGameStored';
 import { IMod } from '../mod_management/types/IMod';
@@ -99,7 +99,15 @@ function retrieveCategories(api: IExtensionApi, isUpdate: boolean) {
           return retrieveCategoryList(nexusId, nexus);
         })
         .then((categories: ICategoryDictionary) => {
-          api.events.emit('update-categories', gameId, categories, isUpdate);
+          const UNASSIGNED = 'Unassigned';
+          let finalCategories = {...categories};
+          if (finalCategories[UNASSIGNED] === undefined ) {
+            const catsMap = Object.keys(categories).map(key => categories[key]);
+            const minOrder: number = catsMap.reduce((min, cat) => cat.order < min ? cat.order : min, catsMap[0].order);
+            finalCategories[UNASSIGNED] = { name: UNASSIGNED, order: minOrder - 1, parentCategory: undefined };
+          }
+
+          api.events.emit('update-categories', gameId, finalCategories, isUpdate);
         })
         .catch(ProcessCanceled, () => null)
         .catch(TimeoutError, () => {
