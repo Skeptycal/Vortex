@@ -185,7 +185,7 @@
     "leveldown": "^4.0.1",
     "levelup": "^3.1.1",
     "libxmljs": "^0.19.1",
-    "lodash": "^4.17.10",
+    "lodash": "^4.17.21",
     "minimatch": "^3.0.4",
     "modmeta-db": "Nexus-Mods/modmeta-db",
     "moment": "^2.22.2",
